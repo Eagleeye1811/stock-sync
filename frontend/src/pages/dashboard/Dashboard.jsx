@@ -8,16 +8,17 @@ import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { 
   TrendingUp, 
   TrendingDown, 
-  Settings, 
-  BarChart3, 
   Package, 
-  LayoutDashboard,
   DollarSign,
   AlertTriangle,
   ShoppingCart,
   Archive
 } from 'lucide-react';
 import { format } from 'date-fns';
+import { 
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+  PieChart, Pie, Cell
+} from 'recharts';
 
 // KPI Summary Card Component
 const KpiCard = ({ label, value, icon: Icon, color = 'blue' }) => {
@@ -44,6 +45,65 @@ const KpiCard = ({ label, value, icon: Icon, color = 'blue' }) => {
         </div>
         <div className={`w-12 h-12 ${colorClasses[color]} rounded-xl flex items-center justify-center`}>
           <Icon size={24} className="text-white" />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Analytics Charts Component
+const AnalyticsSection = ({ data }) => {
+  const PIE_COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
+
+  if (!data) return null;
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+      {/* Stock Value by Category */}
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Stock Value Distribution</h3>
+        <div className="h-80">
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie
+                data={data.categoryDistribution}
+                cx="50%"
+                cy="50%"
+                labelLine={false}
+                label={({ name, percent }) => percent > 0.05 ? `${name} ${(percent * 100).toFixed(0)}%` : ''}
+                outerRadius={80}
+                fill="#8884d8"
+                dataKey="value"
+              >
+                {data.categoryDistribution?.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip formatter={(value) => `₹${value.toLocaleString()}`} />
+              <Legend />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* Monthly Activity */}
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Movement Trends (Last 6 Months)</h3>
+        <div className="h-80">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart
+              data={data.activityTrend}
+              margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name" />
+              <YAxis />
+              <Tooltip />
+              <Legend />
+              <Bar dataKey="receipts" name="Receipts" fill="#10B981" />
+              <Bar dataKey="deliveries" name="Deliveries" fill="#EF4444" />
+            </BarChart>
+          </ResponsiveContainer>
         </div>
       </div>
     </div>
@@ -205,6 +265,12 @@ const Dashboard = () => {
     queryFn: dashboardService.getKPIs,
   });
 
+  // Fetch Analytics
+  const { data: analyticsData, isLoading: loadingAnalytics } = useQuery({
+    queryKey: ['dashboard-analytics'],
+    queryFn: dashboardService.getAnalytics,
+  });
+
   // Fetch Low Stock Items
   const { data: lowStockData, isLoading: loadingLowStock } = useQuery({
     queryKey: ['dashboard-low-stock'],
@@ -217,7 +283,7 @@ const Dashboard = () => {
     queryFn: () => operationService.getOperations({ limit: 10, sort: 'createdAt:desc' }),
   });
 
-  if (loadingKpis || loadingLowStock || loadingActivity) {
+  if (loadingKpis || loadingLowStock || loadingActivity || loadingAnalytics) {
     return <LoadingSpinner fullScreen />;
   }
 
@@ -233,6 +299,7 @@ const Dashboard = () => {
 
   const lowStockItems = lowStockData?.data || [];
   const recentActivity = activityData?.data || [];
+  const analytics = analyticsData?.data || null;
 
   const kpiCardsData = [
     { label: 'Total Products', value: kpis.totalProducts, icon: Package, color: 'blue' },
@@ -265,6 +332,9 @@ const Dashboard = () => {
             />
           ))}
         </div>
+
+        {/* Analytics Charts */}
+        <AnalyticsSection data={analytics} />
 
         {/* Main Content: Low Stock Alerts + Recent Activity */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
