@@ -1,15 +1,19 @@
+import { Mail, Lock, User, UserPlus, Shield } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { useMutation } from '@tanstack/react-query';
 import { authService } from '../../services/authService';
 import { useAuthStore } from '../../stores/authStore';
 import toast from 'react-hot-toast';
-import { Mail, Lock, User, UserPlus } from 'lucide-react';
 
 const Register = () => {
   const navigate = useNavigate();
   const { setAuth } = useAuthStore();
-  const { register, handleSubmit, watch, formState: { errors } } = useForm();
+  const { register, handleSubmit, watch, formState: { errors } } = useForm({
+    defaultValues: {
+      role: 'STAFF' // Default role
+    }
+  });
 
   const registerMutation = useMutation({
     mutationFn: authService.register,
@@ -70,6 +74,30 @@ const Register = () => {
           {errors.lastName && (
             <p className="mt-1 text-sm text-danger-500">{errors.lastName.message}</p>
           )}
+        </div>
+
+        {/* Role Selection */}
+        <div>
+          <label className="label">Select Role</label>
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <Shield size={18} className="text-gray-400" />
+            </div>
+            <select
+              className={`input pl-10 ${errors.role ? 'input-error' : ''} bg-white`}
+              {...register('role', { required: 'Role is required' })}
+            >
+              <option value="STAFF">Warehouse Staff</option>
+              <option value="MANAGER">Inventory Manager</option>
+              <option value="ADMIN">Administrator</option>
+            </select>
+          </div>
+          {errors.role && (
+            <p className="mt-1 text-sm text-danger-500">{errors.role.message}</p>
+          )}
+          <p className="mt-1 text-xs text-gray-500">
+            Select your role to access specific features
+          </p>
         </div>
 
         {/* Email */}

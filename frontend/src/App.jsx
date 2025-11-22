@@ -3,6 +3,9 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 // Layouts
 import MainLayout from './components/layouts/MainLayout';
 
+// Components
+import RoleProtectedRoute from './components/common/RoleProtectedRoute';
+
 // Pages
 import Dashboard from './pages/dashboard/Dashboard';
 import Stock from './pages/stock/Stock';
@@ -17,13 +20,15 @@ function App() {
     <Routes>
       <Route path="/" element={<MainLayout />}>
         <Route index element={<Navigate to="/dashboard" replace />} />
+        
+        {/* Dashboard - All authenticated users */}
         <Route path="dashboard" element={<Dashboard />} />
         
         {/* Stock */}
         <Route path="stock" element={<Stock />} />
         <Route path="products" element={<Stock />} />
         
-        {/* Operations */}
+        {/* Operations - All authenticated users */}
         <Route path="operations/receipts" element={<Receipts />} />
         <Route path="operations/deliveries" element={<Deliveries />} />
         <Route path="operations/transfers" element={<Transfers />} />
@@ -35,6 +40,9 @@ function App() {
         {/* Settings */}
         <Route path="settings" element={<Settings />} />
       </Route>
+
+      {/* Unauthorized Page */}
+      <Route path="/unauthorized" element={<Unauthorized />} />
 
       {/* 404 */}
       <Route path="*" element={<Navigate to="/dashboard" replace />} />

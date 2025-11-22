@@ -9,21 +9,40 @@ import {
   Menu,
   X
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
+import { filterNavigationByRole, getRoleDisplayName } from '../../utils/roleConfig';
+import { useDeviceDetection } from '../../hooks/useDeviceDetection';
 
 const MainLayout = () => {
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { isMobile } = useDeviceDetection();
 
-  const navigation = [
+  const allNavigation = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { 
       name: 'Operations', 
-      icon: ArrowLeftRight,
+      icon: 'ArrowLeftRight',
+      roles: ['ADMIN', 'MANAGER', 'STAFF'],
       children: [
-        { name: 'Receipts', href: '/operations/receipts', icon: TrendingUp },
-        { name: 'Deliveries', href: '/operations/deliveries', icon: TrendingDown },
-        { name: 'Transfers', href: '/operations/transfers', icon: ArrowLeftRight },
+        { 
+          name: 'Receipts', 
+          href: '/operations/receipts', 
+          icon: 'TrendingUp',
+          roles: ['ADMIN', 'MANAGER', 'STAFF']
+        },
+        { 
+          name: 'Deliveries', 
+          href: '/operations/deliveries', 
+          icon: 'TrendingDown',
+          roles: ['ADMIN', 'MANAGER', 'STAFF']
+        },
+        { 
+          name: 'Transfers', 
+          href: '/operations/transfers', 
+          icon: 'ArrowLeftRight',
+          roles: ['ADMIN', 'MANAGER', 'STAFF']
+        },
       ]
     },
     { 
@@ -36,6 +55,12 @@ const MainLayout = () => {
     },
     { name: 'Settings', href: '/settings', icon: Settings },
   ];
+
+  // Filter navigation based on user role
+  const navigation = useMemo(() => {
+    if (!user?.role) return [];
+    return filterNavigationByRole(allNavigation, user.role);
+  }, [user?.role]);
 
   const isActive = (path) => location.pathname === path;
 
@@ -69,52 +94,59 @@ const MainLayout = () => {
 
           {/* Navigation */}
           <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
-            {navigation.map((item) => (
-              <div key={item.name}>
-                {item.children ? (
-                  <div className="mb-2">
-                    <div className="flex items-center px-3 py-2 text-sm font-medium text-gray-700">
-                      <item.icon size={18} className="mr-3" />
+            {navigation.map((item) => {
+              const Icon = iconMap[item.icon];
+              
+              return (
+                <div key={item.name}>
+                  {item.children ? (
+                    <div className="mb-2">
+                      <div className="flex items-center px-3 py-2 text-sm font-medium text-gray-700">
+                        {Icon && <Icon size={18} className="mr-3" />}
+                        {item.name}
+                      </div>
+                      <div className="ml-6 space-y-1">
+                        {item.children.map((child) => {
+                          const ChildIcon = iconMap[child.icon];
+                          return (
+                            <Link
+                              key={child.name}
+                              to={child.href}
+                              className={`
+                                flex items-center px-3 py-2 text-sm rounded-lg transition-colors
+                                ${isActive(child.href)
+                                  ? 'bg-primary-50 text-primary-600 font-medium'
+                                  : 'text-gray-600 hover:bg-gray-100'
+                                }
+                              `}
+                              onClick={() => setSidebarOpen(false)}
+                            >
+                              {ChildIcon && <ChildIcon size={16} className="mr-2" />}
+                              {child.name}
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : (
+                    <Link
+                      to={item.href}
+                      className={`
+                        flex items-center px-3 py-2 text-sm rounded-lg transition-colors
+                        ${isActive(item.href)
+                          ? 'bg-primary-50 text-primary-600 font-medium'
+                          : 'text-gray-600 hover:bg-gray-100'
+                        }
+                      `}
+                      onClick={() => setSidebarOpen(false)}
+                    >
+                      {Icon && <Icon size={18} className="mr-3" />}
                       {item.name}
-                    </div>
-                    <div className="ml-6 space-y-1">
-                      {item.children.map((child) => (
-                        <Link
-                          key={child.name}
-                          to={child.href}
-                          className={`
-                            flex items-center px-3 py-2 text-sm rounded-lg transition-colors
-                            ${isActive(child.href)
-                              ? 'bg-primary-50 text-primary-600 font-medium'
-                              : 'text-gray-600 hover:bg-gray-100'
-                            }
-                          `}
-                          onClick={() => setSidebarOpen(false)}
-                        >
-                          {child.icon && <child.icon size={16} className="mr-2" />}
-                          {child.name}
-                        </Link>
-                      ))}
-                    </div>
-                  </div>
-                ) : (
-                  <Link
-                    to={item.href}
-                    className={`
-                      flex items-center px-3 py-2 text-sm rounded-lg transition-colors
-                      ${isActive(item.href)
-                        ? 'bg-primary-50 text-primary-600 font-medium'
-                        : 'text-gray-600 hover:bg-gray-100'
-                      }
-                    `}
-                    onClick={() => setSidebarOpen(false)}
-                  >
-                    <item.icon size={18} className="mr-3" />
-                    {item.name}
-                  </Link>
-                )}
-              </div>
-            ))}
+                    </Link>
+                  )}
+                </div>
+              );
+            })}
           </nav>
         </div>
       </aside>
