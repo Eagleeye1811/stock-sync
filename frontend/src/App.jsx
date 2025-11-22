@@ -5,6 +5,9 @@ import { useAuthStore } from './stores/authStore';
 import MainLayout from './components/layouts/MainLayout';
 import AuthLayout from './components/layouts/AuthLayout';
 
+// Components
+import RoleProtectedRoute from './components/common/RoleProtectedRoute';
+
 // Pages
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
@@ -17,8 +20,9 @@ import Deliveries from './pages/operations/Deliveries';
 import Transfers from './pages/operations/Transfers';
 import StockLevels from './pages/inventory/StockLevels';
 import StockLedger from './pages/inventory/StockLedger';
+import Unauthorized from './pages/Unauthorized';
 
-// Protected Route Component
+// Protected Route Component - Basic authentication check
 const ProtectedRoute = ({ children }) => {
   const { token } = useAuthStore();
   
@@ -67,22 +71,55 @@ function App() {
         </ProtectedRoute>
       }>
         <Route index element={<Navigate to="/dashboard" replace />} />
+        
+        {/* Dashboard - All authenticated users */}
         <Route path="dashboard" element={<Dashboard />} />
         
-        {/* Products */}
-        <Route path="products" element={<Products />} />
-        <Route path="products/new" element={<CreateProduct />} />
-        <Route path="products/:id" element={<ProductDetail />} />
+        {/* Products - Admin & Manager only */}
+        <Route 
+          path="products" 
+          element={
+            <RoleProtectedRoute allowedRoles={['ADMIN', 'MANAGER']}>
+              <Products />
+            </RoleProtectedRoute>
+          } 
+        />
+        <Route 
+          path="products/new" 
+          element={
+            <RoleProtectedRoute allowedRoles={['ADMIN', 'MANAGER']}>
+              <CreateProduct />
+            </RoleProtectedRoute>
+          } 
+        />
+        <Route 
+          path="products/:id" 
+          element={
+            <RoleProtectedRoute allowedRoles={['ADMIN', 'MANAGER']}>
+              <ProductDetail />
+            </RoleProtectedRoute>
+          } 
+        />
         
-        {/* Operations */}
+        {/* Operations - All authenticated users */}
         <Route path="operations/receipts" element={<Receipts />} />
         <Route path="operations/deliveries" element={<Deliveries />} />
         <Route path="operations/transfers" element={<Transfers />} />
         
-        {/* Inventory */}
+        {/* Inventory - Stock Levels: All users, Ledger: Admin & Manager only */}
         <Route path="inventory/stock-levels" element={<StockLevels />} />
-        <Route path="inventory/ledger" element={<StockLedger />} />
+        <Route 
+          path="inventory/ledger" 
+          element={
+            <RoleProtectedRoute allowedRoles={['ADMIN', 'MANAGER']}>
+              <StockLedger />
+            </RoleProtectedRoute>
+          } 
+        />
       </Route>
+
+      {/* Unauthorized Page */}
+      <Route path="/unauthorized" element={<Unauthorized />} />
 
       {/* 404 */}
       <Route path="*" element={<Navigate to="/dashboard" replace />} />

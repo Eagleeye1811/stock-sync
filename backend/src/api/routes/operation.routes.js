@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { body } = require('express-validator');
 const operationController = require('../controllers/operation.controller');
-const { protect } = require('../middleware/auth');
+const { protect, authorize } = require('../middleware/auth');
 const validate = require('../middleware/validate');
 
 // All routes require authentication
@@ -65,9 +65,13 @@ router.post(
 /**
  * @route   POST /api/operations/validate/:moveId
  * @desc    Validate an operation (CRITICAL ENDPOINT - Updates stock levels)
- * @access  Private
+ * @access  Private (ADMIN, MANAGER only)
  */
-router.post('/validate/:moveId', operationController.validateOperation);
+router.post(
+  '/validate/:moveId', 
+  authorize('ADMIN', 'MANAGER'),
+  operationController.validateOperation
+);
 
 /**
  * @route   GET /api/operations
@@ -86,9 +90,13 @@ router.get('/:moveId', operationController.getOperation);
 /**
  * @route   DELETE /api/operations/:moveId
  * @desc    Cancel/delete an operation (only if status is DRAFT)
- * @access  Private
+ * @access  Private (ADMIN, MANAGER only)
  */
-router.delete('/:moveId', operationController.cancelOperation);
+router.delete(
+  '/:moveId', 
+  authorize('ADMIN', 'MANAGER'),
+  operationController.cancelOperation
+);
 
 module.exports = router;
 
