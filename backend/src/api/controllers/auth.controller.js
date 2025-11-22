@@ -19,7 +19,7 @@ const generateToken = (userId) => {
  */
 exports.register = async (req, res, next) => {
   try {
-    const { email, password, firstName, lastName } = req.body;
+    const { email, password, firstName, lastName, role } = req.body;
 
     // Check if user already exists
     const existingUser = await prisma.user.findUnique({
@@ -37,15 +37,18 @@ exports.register = async (req, res, next) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Create user - ALWAYS defaults to STAFF for public registration
-    // Admins can create users with other roles via admin panel
+    // Validate role if provided, otherwise default to STAFF
+    const validRoles = ['ADMIN', 'MANAGER', 'STAFF'];
+    const userRole = role && validRoles.includes(role) ? role : 'STAFF';
+
+    // Create user
     const user = await prisma.user.create({
       data: {
         email,
         password: hashedPassword,
         firstName,
         lastName,
-        role: 'STAFF' // Security: Public registration always creates STAFF users
+        role: userRole
       },
       select: {
         id: true,
