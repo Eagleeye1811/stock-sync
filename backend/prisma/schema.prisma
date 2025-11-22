@@ -1,0 +1,152 @@
+// Prisma Schema for StockMaster IMS
+// Database: PostgreSQL
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// CORE TABLES
+// ============================================
+
+// User Management & Authentication
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  password     String
+  firstName    String   @map("first_name")
+  lastName     String   @map("last_name")
+  role         UserRole @default(STAFF)
+  isActive     Boolean  @default(true) @map("is_active")
+  lastLogin    DateTime? @map("last_login")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  createdMoves StockLedger[] @relation("CreatedBy")
+
+  @@map("users")
+}
+
+enum UserRole {
+  ADMIN           // Full system access
+  MANAGER         // Inventory management (Desktop focus)
+  STAFF           // Warehouse operations (Mobile focus)
+}
+
+// Product Master Data
+model Product {
+  id          String   @id @default(uuid()) @map("product_id")
+  name        String
+  skuCode     String   @unique @map("sku_code")
+  description String?
+  category    String
+  uom         String   // Unit of Measure (pcs, kg, liters, etc.)
+  reorderLevel Int?    @map("reorder_level") // Minimum stock alert
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  stockLevels  StockLevel[]
+  stockLedger  StockLedger[]
+
+  @@index([category])
+  @@index([skuCode])
+  @@map("products")
+}
+
+// Location Master Data
+model Location {
+  id          String   @id @default(uuid()) @map("location_id")
+  name        String   @unique
+  type        LocationType
+  description String?
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  stockLevels      StockLevel[]
+  sourceMoves      StockLedger[] @relation("SourceLocation")
+  destinationMoves StockLedger[] @relation("DestinationLocation")
+
+  @@map("locations")
+}
+
+enum LocationType {
+  WAREHOUSE
+  RACK
+  SHELF
+  ZONE
+  SUPPLIER       // Virtual location for incoming
+  CUSTOMER       // Virtual location for outgoing
+}
+
+// Stock Level - Current Real-Time Inventory
+model StockLevel {
+  id         String   @id @default(uuid()) @map("stock_id")
+  productId  String   @map("product_id")
+  locationId String   @map("location_id")
+  quantity   Float    // Using Float for decimal quantities (e.g., 2.5 kg)
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  product  Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  location Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  // Composite unique constraint - One stock level per product per location
+  @@unique([productId, locationId])
+  @@index([productId])
+  @@index([locationId])
+  @@map("stock_levels")
+}
+
+// Stock Ledger - Complete Transaction History
+model StockLedger {
+  id                    String         @id @default(uuid()) @map("move_id")
+  productId             String         @map("product_id")
+  sourceLocationId      String?        @map("source_location_id")
+  destinationLocationId String?        @map("destination_location_id")
+  quantity              Float
+  documentType          DocumentType   @map("document_type")
+  documentNumber        String?        @map("document_number") // Reference number (PO, DO, etc.)
+  status                DocumentStatus @default(DRAFT)
+  notes                 String?
+  createdBy             String         @map("created_by")
+  validatedAt           DateTime?      @map("validated_at")
+  createdAt             DateTime       @default(now()) @map("created_at")
+  updatedAt             DateTime       @updatedAt @map("updated_at")
+
+  // Relations
+  product             Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  sourceLocation      Location? @relation("SourceLocation", fields: [sourceLocationId], references: [id])
+  destinationLocation Location? @relation("DestinationLocation", fields: [destinationLocationId], references: [id])
+  user                User      @relation("CreatedBy", fields: [createdBy], references: [id])
+
+  @@index([productId])
+  @@index([documentType])
+  @@index([status])
+  @@index([createdAt])
+  @@index([documentNumber])
+  @@map("stock_ledger")
+}
+
+enum DocumentType {
+  RECEIPT          // Incoming stock (from supplier)
+  DELIVERY         // Outgoing stock (to customer)
+  INTERNAL_TRANSFER // Between internal locations
+  ADJUSTMENT       // Stock count adjustments
+}
+
+enum DocumentStatus {
+  DRAFT            // Created but not yet validated
+  VALIDATED        // Confirmed and stock updated
+  CANCELLED        // Cancelled transaction
+}
+

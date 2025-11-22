@@ -1,0 +1,69 @@
+.
+|-- backend
+|   |-- prisma
+|   |   |-- schema.prisma
+|   |   `-- seed.js
+|   |-- src
+|   |   |-- api
+|   |   |-- config
+|   |   |-- services
+|   |   |-- types
+|   |   |-- utils
+|   |   `-- server.js
+|   |-- tests
+|   |   |-- integration
+|   |   `-- unit
+|   |-- README.md
+|   |-- env.template
+|   `-- package.json
+|-- config
+|-- docker
+|-- docs
+|   |-- api
+|   |-- architecture
+|   |-- deployment
+|   |-- API_DOCUMENTATION.md
+|   |-- ARCHITECTURE.md
+|   `-- SETUP_GUIDE.md
+|-- frontend
+|   |-- public
+|   |-- src
+|   |   |-- assets
+|   |   |-- components
+|   |   |-- hooks
+|   |   |-- pages
+|   |   |-- services
+|   |   |-- stores
+|   |   |-- styles
+|   |   |-- types
+|   |   |-- utils
+|   |   |-- App.jsx
+|   |   `-- main.jsx
+|   |-- tests
+|   |   |-- e2e
+|   |   `-- unit
+|   |-- README.md
+|   |-- index.html
+|   |-- package.json
+|   |-- postcss.config.js
+|   |-- tailwind.config.js
+|   `-- vite.config.js
+|-- scripts
+|   |-- deployment
+|   |-- migration
+|   `-- setup
+|-- shared
+|   |-- constants
+|   |   `-- index.js
+|   |-- types
+|   |   `-- index.js
+|   |-- utils
+|   |   `-- formatters.js
+|   `-- validators
+|       |-- operationValidator.js
+|       `-- productValidator.js
+|-- FOLDER_STRUCTURE.md
+|-- PROJECT_TREE.txt
+`-- README.md
+
+42 directories, 25 files
