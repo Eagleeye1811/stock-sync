@@ -47,17 +47,36 @@ model Product {
   description String?
   category    String
   uom         String   // Unit of Measure (pcs, kg, liters, etc.)
-  reorderLevel Int?    @map("reorder_level") // Minimum stock alert
+  
+  // Costing & Pricing (NEW - for Stock page)
+  unitCost    Float?   @map("unit_cost")        // Per unit cost/purchase price
+  sellingPrice Float?  @map("selling_price")    // Per unit selling price
+  currency    String   @default("USD")          // Currency code
+  
+  // Inventory Control (ENHANCED)
+  reorderLevel Int?    @map("reorder_level")    // Minimum stock alert
+  maxStockLevel Int?   @map("max_stock_level")  // Maximum stock capacity
+  leadTimeDays Int?    @map("lead_time_days")   // Supplier lead time
+  
+  // Product Details (ENHANCED)
+  barcode     String?  @unique                   // Barcode/EAN
+  brand       String?                            // Product brand
+  weight      Float?                             // Weight per unit
+  dimensions  String?                            // Dimensions (LxWxH)
+  
+  // Status
   isActive    Boolean  @default(true) @map("is_active")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
   // Relations
-  stockLevels  StockLevel[]
-  stockLedger  StockLedger[]
+  stockLevels     StockLevel[]
+  stockLedger     StockLedger[]
+  stockReservations StockReservation[]
 
   @@index([category])
   @@index([skuCode])
+  @@index([barcode])
   @@map("products")
 }
 
@@ -93,8 +112,15 @@ model StockLevel {
   id         String   @id @default(uuid()) @map("stock_id")
   productId  String   @map("product_id")
   locationId String   @map("location_id")
-  quantity   Float    // Using Float for decimal quantities (e.g., 2.5 kg)
-  updatedAt  DateTime @updatedAt @map("updated_at")
+  
+  // Quantity Tracking (ENHANCED for "On Hand" & "Free to Use")
+  onHandQuantity  Float    @map("on_hand_quantity")  // Total physical stock
+  reservedQuantity Float   @default(0) @map("reserved_quantity") // Reserved/allocated stock
+  availableQuantity Float  @default(0) @map("available_quantity") // Free to use = onHand - reserved
+  
+  // Additional Tracking
+  lastCountDate DateTime? @map("last_count_date")    // Last physical count date
+  updatedAt     DateTime  @updatedAt @map("updated_at")
 
   // Relations
   product  Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
@@ -107,33 +133,57 @@ model StockLevel {
   @@map("stock_levels")
 }
 
-// Stock Ledger - Complete Transaction History
+// Stock Ledger - Complete Transaction History (Move History Page)
 model StockLedger {
   id                    String         @id @default(uuid()) @map("move_id")
   productId             String         @map("product_id")
   sourceLocationId      String?        @map("source_location_id")
   destinationLocationId String?        @map("destination_location_id")
   quantity              Float
+  
+  // Document Information (Reference)
   documentType          DocumentType   @map("document_type")
   documentNumber        String?        @map("document_number") // Reference number (PO, DO, etc.)
   status                DocumentStatus @default(DRAFT)
+  
+  // Contact/Partner Information (NEW - for Delivery & Receipts pages)
+  contactId             String?        @map("contact_id")     // Links to Business Partner
+  contactName           String?        @map("contact_name")   // Cached contact name for quick display
+  
+  // Scheduling (NEW - for Delivery & Receipts pages)
+  scheduledDate         DateTime?      @map("scheduled_date")    // Expected/Planned delivery date
+  completedDate         DateTime?      @map("completed_date")    // Actual completion date
+  
+  // Costing (NEW)
+  unitCost              Float?         @map("unit_cost")          // Cost per unit at transaction time
+  totalValue            Float?         @map("total_value")        // Total transaction value
+  
+  // Additional Details
   notes                 String?
+  trackingNumber        String?        @map("tracking_number")    // Shipping tracking number
+  priority              Priority?      @default(NORMAL)           // Transaction priority
+  
+  // Audit Fields
   createdBy             String         @map("created_by")
+  validatedBy           String?        @map("validated_by")       // Who validated/approved
   validatedAt           DateTime?      @map("validated_at")
   createdAt             DateTime       @default(now()) @map("created_at")
   updatedAt             DateTime       @updatedAt @map("updated_at")
 
   // Relations
-  product             Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
-  sourceLocation      Location? @relation("SourceLocation", fields: [sourceLocationId], references: [id])
-  destinationLocation Location? @relation("DestinationLocation", fields: [destinationLocationId], references: [id])
-  user                User      @relation("CreatedBy", fields: [createdBy], references: [id])
+  product             Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
+  sourceLocation      Location?        @relation("SourceLocation", fields: [sourceLocationId], references: [id])
+  destinationLocation Location?        @relation("DestinationLocation", fields: [destinationLocationId], references: [id])
+  user                User             @relation("CreatedBy", fields: [createdBy], references: [id])
+  contact             BusinessPartner? @relation(fields: [contactId], references: [id])
 
   @@index([productId])
   @@index([documentType])
   @@index([status])
   @@index([createdAt])
   @@index([documentNumber])
+  @@index([contactId])
+  @@index([scheduledDate])
   @@map("stock_ledger")
 }
 
@@ -148,5 +198,100 @@ enum DocumentStatus {
   DRAFT            // Created but not yet validated
   VALIDATED        // Confirmed and stock updated
   CANCELLED        // Cancelled transaction
+}
+
+enum Priority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+// ============================================
+// NEW TABLES FOR ENHANCED FUNCTIONALITY
+// ============================================
+
+// Business Partners - Suppliers & Customers (NEW - for Contact field)
+model BusinessPartner {
+  id              String   @id @default(uuid()) @map("partner_id")
+  name            String
+  type            PartnerType
+  code            String   @unique  @map("partner_code")    // Unique partner code
+  
+  // Contact Information
+  contactPerson   String?  @map("contact_person")
+  email           String?
+  phone           String?
+  address         String?
+  city            String?
+  country         String?
+  postalCode      String?  @map("postal_code")
+  
+  // Business Details
+  taxId           String?  @unique @map("tax_id")           // VAT/Tax ID
+  paymentTerms    String?  @map("payment_terms")            // e.g., "Net 30"
+  creditLimit     Float?   @map("credit_limit")
+  
+  // Status
+  isActive        Boolean  @default(true) @map("is_active")
+  notes           String?
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  stockLedger     StockLedger[]
+  
+  @@index([type])
+  @@index([code])
+  @@map("business_partners")
+}
+
+enum PartnerType {
+  SUPPLIER
+  CUSTOMER
+  BOTH             // Can be both supplier and customer
+}
+
+// Stock Reservations - Track Reserved/Allocated Stock (NEW - for "Free to Use" calculation)
+model StockReservation {
+  id              String   @id @default(uuid()) @map("reservation_id")
+  productId       String   @map("product_id")
+  locationId      String   @map("location_id")
+  quantity        Float
+  
+  // Reservation Details
+  reservationType ReservationType @map("reservation_type")
+  referenceNumber String?  @map("reference_number")       // Sales Order, Work Order, etc.
+  reservedFor     String?  @map("reserved_for")          // Customer name or purpose
+  expiresAt       DateTime? @map("expires_at")            // Reservation expiry
+  
+  // Status
+  status          ReservationStatus @default(ACTIVE)
+  notes           String?
+  createdBy       String   @map("created_by")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  product         Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  
+  @@index([productId])
+  @@index([locationId])
+  @@index([status])
+  @@map("stock_reservations")
+}
+
+enum ReservationType {
+  SALES_ORDER      // Reserved for customer order
+  WORK_ORDER       // Reserved for production/assembly
+  TRANSFER         // Reserved for internal transfer
+  OTHER
+}
+
+enum ReservationStatus {
+  ACTIVE           // Currently reserved
+  FULFILLED        // Reservation fulfilled
+  CANCELLED        // Reservation cancelled
+  EXPIRED          // Reservation expired
 }
 
